@@ -76,7 +76,7 @@ h1, h2, h3 {
 }
 
 .brand h1 {
-  font-size: 2.05rem;
+  font-size: 3rem;
   line-height: 1;
   color: var(--forest-deep);
 }
@@ -519,7 +519,7 @@ textarea { min-height: 72px; resize: vertical; }
   .grid-3, .dash-jobs { grid-template-columns: 1fr 1fr; }
   .hero-tuesday { grid-template-columns: 1fr; }
   .logo { width: 64px; height: 64px; }
-  .brand h1 { font-size: 1.55rem; }
+  .brand h1 { font-size: 2.2rem; }
   .section-head { flex-direction: column; align-items: stretch; }
   .tray-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 }
