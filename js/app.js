@@ -239,20 +239,10 @@ function trayCard(tray) {
 function plantCardsHtml() {
   return PRODUCTION_CROPS.map((crop) => {
     const cycle = nextOnTimeCycle(crop.daysToHarvest, today, tuesdays);
-    const daysOut = diffDays(today, cycle.plant);
-    const when =
-      daysOut === 0
-        ? "Plant today"
-        : daysOut === 1
-          ? "Plant tomorrow"
-          : `Plant ${weekdayName(cycle.plant)}`;
     return `
       <article class="card ${crop.tone}">
         <h3 class="crop">${crop.name}</h3>
-        <p class="variety">${crop.variety} · ${crop.daysToHarvest} days to harvest · never plant Tuesday</p>
-        <p class="plant-date">${when}: <strong>${prettyDate(cycle.plant)}</strong></p>
-        <p class="meta">Ready to cut ${prettyDateLong(cycle.harvest)}</p>
-        <p class="meta">${crop.note}</p>
+        <p class="plant-date"><strong>${prettyDate(cycle.plant)}</strong></p>
       </article>
     `;
   }).join("");
