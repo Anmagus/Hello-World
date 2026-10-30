@@ -277,7 +277,7 @@ function renderDashboard() {
   els.dashHero.innerHTML = `
     <div>
       <p class="kicker">Dashboard</p>
-      <h2>${prettyDateLong(thisTuesday)}</h2>
+      <h2>${daysOut === 0 ? "Harvest today" : "Upcoming harvest"} · ${prettyDateLong(thisTuesday)}</h2>
       <p class="sub">${when} Cut in the morning, drop off the same day.</p>
     </div>
   `;
