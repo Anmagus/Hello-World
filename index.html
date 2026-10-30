@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#163326">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Gold Leaf Harvest">
+  <title>Gold Leaf Harvest — Tuesday grow board</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="site-header">
+      <img class="logo" src="assets/logo.png" alt="Gold Leaf Harvest logo">
+      <div class="brand">
+        <h1>Gold Leaf Harvest</h1>
+        <p>Morrisville, NC</p>
+      </div>
+      <div class="header-actions">
+        <span id="sync-pill" class="sync-pill">On this device</span>
+        <span id="auth-slot"></span>
+        <button class="btn ghost" type="button" id="export-btn">Export</button>
+        <button class="btn ghost" type="button" id="import-btn">Import</button>
+        <input class="hidden-file" id="import-file" type="file" accept="application/json">
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Grow boards">
+      <button type="button" role="tab" data-tab-btn="dashboard" aria-selected="true">Dashboard</button>
+      <button type="button" role="tab" data-tab-btn="production" aria-selected="false">Production</button>
+      <button type="button" role="tab" data-tab-btn="testing" aria-selected="false">Testing</button>
+      <button type="button" role="tab" data-tab-btn="past" aria-selected="false">Past</button>
+    </nav>
+
+    <section id="panel-dashboard" class="panel">
+      <div class="hero-tuesday" id="dash-hero"></div>
+      <div class="dash-stats" id="dash-stats"></div>
+      <div class="section-head">
+        <div>
+          <h2>Today’s jobs</h2>
+        </div>
+      </div>
+      <div class="dash-jobs" id="dash-jobs"></div>
+      <div class="section-head">
+        <div>
+          <h2>Next plant dates</h2>
+          <p>On-time dates so harvest still lands on a Tuesday.</p>
+        </div>
+        <button class="btn" type="button" data-goto-tab="production">Open production</button>
+      </div>
+      <div class="grid-3" id="dash-plants"></div>
+    </section>
+
+    <section id="panel-production" class="panel" hidden>
+      <div class="hero-tuesday" id="harvest-hero"></div>
+
+      <div class="section-head">
+        <div>
+          <h2>When to plant</h2>
+          <p>Back-dated from the next Tuesday you can still hit on time.</p>
+        </div>
+      </div>
+      <div class="grid-3" id="plant-grid"></div>
+
+      <div class="section-head">
+        <div>
+          <h2>This Tuesday’s cut</h2>
+          <p>Harvest in the morning, deliver the same day.</p>
+        </div>
+      </div>
+      <div id="harvest-list"></div>
+
+      <div class="section-head">
+        <div>
+          <h2>Every production tray</h2>
+          <p>Nasturtium, amaranth, and cilantro only.</p>
+        </div>
+        <button class="btn" type="button" id="add-production">Add tray</button>
+      </div>
+      <div class="tray-grid" id="production-trays"></div>
+    </section>
+
+    <section id="panel-testing" class="panel" hidden>
+      <div class="section-head">
+        <div>
+          <h2>Testing other greens</h2>
+          <p>Trial varieties you may distribute later. Not locked to Tuesday.</p>
+        </div>
+        <button class="btn" type="button" id="add-testing">Add test tray</button>
+      </div>
+      <div class="tray-grid" id="testing-trays"></div>
+    </section>
+
+    <section id="panel-past" class="panel" hidden>
+      <div class="section-head">
+        <div>
+          <h2>Past trays</h2>
+          <p>Finished and missed trays in one list, so you can compare yields and timing. No money.</p>
+        </div>
+      </div>
+      <div class="history-filters" id="history-filters"></div>
+      <div class="dash-stats" id="history-stats"></div>
+      <div id="history-list"></div>
+    </section>
+  </div>
+
+  <dialog id="tray-dialog">
+    <div class="dialog-head">
+      <h2 id="form-title">Add tray</h2>
+    </div>
+    <form id="tray-form">
+      <div id="form-fields"></div>
+      <div class="form-actions">
+        <button class="btn ghost" type="button" id="form-cancel">Cancel</button>
+        <button class="btn" type="submit">Save tray</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="harvest-dialog">
+    <div class="dialog-head">
+      <h2>How much did you harvest?</h2>
+    </div>
+    <form id="harvest-form">
+      <p class="hint" id="harvest-tray-name"></p>
+      <div class="amount-row">
+        <label>Amount
+          <input name="amount" id="harvest-amount" type="number" min="0" step="0.1" required>
+        </label>
+        <label>Unit
+          <select name="unit" id="harvest-unit">
+            <option value="oz">ounces (oz)</option>
+            <option value="g">grams (g)</option>
+            <option value="leaves">leaves</option>
+          </select>
+        </label>
+      </div>
+      <p class="hint">Weigh or count what you cut from this tray. No prices.</p>
+      <div class="form-actions">
+        <button class="btn ghost" type="button" id="harvest-cancel">Cancel</button>
+        <button class="btn" type="submit">Save harvest</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
