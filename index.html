@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gold Leaf Harvest — Tuesday grow board</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="site-header">
+      <img class="logo" src="assets/logo.png" alt="Gold Leaf Harvest logo">
+      <div class="brand">
+        <h1>Gold Leaf Harvest</h1>
+        <p>Morrisville, NC · Plant, harvest, and deliver on Tuesdays</p>
+      </div>
+      <div class="header-actions">
+        <span id="sync-pill" class="sync-pill">On this device</span>
+        <span id="auth-slot"></span>
+        <button class="btn ghost" type="button" id="export-btn">Export</button>
+        <button class="btn ghost" type="button" id="import-btn">Import</button>
+        <input class="hidden-file" id="import-file" type="file" accept="application/json">
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="Grow boards">
+      <button type="button" role="tab" data-tab-btn="production" aria-selected="true">Tuesday production</button>
+      <button type="button" role="tab" data-tab-btn="testing" aria-selected="false">Testing</button>
+    </nav>
+
+    <section id="panel-production" class="panel">
+      <div class="hero-tuesday" id="harvest-hero"></div>
+
+      <div class="section-head">
+        <div>
+          <h2>When to plant</h2>
+          <p>Back-dated from the next Tuesday you can still hit on time.</p>
+        </div>
+      </div>
+      <div class="grid-3" id="plant-grid"></div>
+
+      <div class="section-head">
+        <div>
+          <h2>This Tuesday’s cut</h2>
+          <p>Harvest in the morning, deliver the same day.</p>
+        </div>
+      </div>
+      <div id="harvest-list"></div>
+
+      <div class="section-head">
+        <div>
+          <h2>Every production tray</h2>
+          <p>Nasturtium, amaranth, and cilantro only.</p>
+        </div>
+        <button class="btn" type="button" id="add-production">Add tray</button>
+      </div>
+      <div class="tray-grid" id="production-trays"></div>
+    </section>
+
+    <section id="panel-testing" class="panel" hidden>
+      <div class="section-head">
+        <div>
+          <h2>Testing other greens</h2>
+          <p>Trial varieties you may distribute later. Not locked to Tuesday.</p>
+        </div>
+        <button class="btn" type="button" id="add-testing">Add test tray</button>
+      </div>
+      <div class="tray-grid" id="testing-trays"></div>
+    </section>
+  </div>
+
+  <dialog id="tray-dialog">
+    <div class="dialog-head">
+      <h2 id="form-title">Add tray</h2>
+    </div>
+    <form id="tray-form">
+      <div id="form-fields"></div>
+      <div class="form-actions">
+        <button class="btn ghost" type="button" id="form-cancel">Cancel</button>
+        <button class="btn" type="submit">Save tray</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
