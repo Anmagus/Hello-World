@@ -35,6 +35,7 @@
       <button type="button" role="tab" data-tab-btn="dashboard" aria-selected="true">Dashboard</button>
       <button type="button" role="tab" data-tab-btn="production" aria-selected="false">Production</button>
       <button type="button" role="tab" data-tab-btn="testing" aria-selected="false">Testing</button>
+      <button type="button" role="tab" data-tab-btn="past" aria-selected="false">Past</button>
     </nav>
 
     <section id="panel-dashboard" class="panel">
@@ -96,6 +97,18 @@
       </div>
       <div class="tray-grid" id="testing-trays"></div>
     </section>
+
+    <section id="panel-past" class="panel" hidden>
+      <div class="section-head">
+        <div>
+          <h2>Past trays</h2>
+          <p>Finished and missed trays in one list, so you can compare yields and timing. No money.</p>
+        </div>
+      </div>
+      <div class="history-filters" id="history-filters"></div>
+      <div class="dash-stats" id="history-stats"></div>
+      <div id="history-list"></div>
+    </section>
   </div>
 
   <dialog id="tray-dialog">
@@ -107,6 +120,32 @@
       <div class="form-actions">
         <button class="btn ghost" type="button" id="form-cancel">Cancel</button>
         <button class="btn" type="submit">Save tray</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="harvest-dialog">
+    <div class="dialog-head">
+      <h2>How much did you harvest?</h2>
+    </div>
+    <form id="harvest-form">
+      <p class="hint" id="harvest-tray-name"></p>
+      <div class="amount-row">
+        <label>Amount
+          <input name="amount" id="harvest-amount" type="number" min="0" step="0.1" required>
+        </label>
+        <label>Unit
+          <select name="unit" id="harvest-unit">
+            <option value="oz">ounces (oz)</option>
+            <option value="g">grams (g)</option>
+            <option value="leaves">leaves</option>
+          </select>
+        </label>
+      </div>
+      <p class="hint">Weigh or count what you cut from this tray. No prices.</p>
+      <div class="form-actions">
+        <button class="btn ghost" type="button" id="harvest-cancel">Cancel</button>
+        <button class="btn" type="submit">Save harvest</button>
       </div>
     </form>
   </dialog>

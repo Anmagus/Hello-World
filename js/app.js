@@ -27,6 +27,10 @@ const els = {
   dashboard: document.getElementById("panel-dashboard"),
   production: document.getElementById("panel-production"),
   testing: document.getElementById("panel-testing"),
+  past: document.getElementById("panel-past"),
+  historyFilters: document.getElementById("history-filters"),
+  historyStats: document.getElementById("history-stats"),
+  historyList: document.getElementById("history-list"),
   plantGrid: document.getElementById("plant-grid"),
   dashHero: document.getElementById("dash-hero"),
   dashStats: document.getElementById("dash-stats"),
@@ -40,6 +44,11 @@ const els = {
   form: document.getElementById("tray-form"),
   formTitle: document.getElementById("form-title"),
   formFields: document.getElementById("form-fields"),
+  harvestDialog: document.getElementById("harvest-dialog"),
+  harvestForm: document.getElementById("harvest-form"),
+  harvestTrayName: document.getElementById("harvest-tray-name"),
+  harvestAmount: document.getElementById("harvest-amount"),
+  harvestUnit: document.getElementById("harvest-unit"),
   syncPill: document.getElementById("sync-pill"),
   authSlot: document.getElementById("auth-slot"),
   fileInput: document.getElementById("import-file"),
@@ -48,6 +57,8 @@ const els = {
 let state = { trays: [], user: null, mode: "local", syncReady: false };
 let activeTab = "dashboard";
 let editingId = null;
+let harvestTrayId = null;
+let historyFilter = { board: "all", crop: "all", sort: "harvest-desc" };
 
 store.subscribe((next) => {
   state = next;
@@ -68,6 +79,14 @@ document.getElementById("import-btn").addEventListener("click", () => els.fileIn
 els.fileInput.addEventListener("change", importBackup);
 document.getElementById("form-cancel").addEventListener("click", () => els.dialog.close());
 els.form.addEventListener("submit", onSubmit);
+document.getElementById("harvest-cancel").addEventListener("click", () => els.harvestDialog.close());
+els.harvestForm.addEventListener("submit", onHarvestSubmit);
+els.historyFilters.addEventListener("change", (e) => {
+  const field = e.target;
+  if (!["board", "crop", "sort"].includes(field.name)) return;
+  historyFilter[field.name] = field.value;
+  renderHistory();
+});
 
 document.addEventListener("click", (e) => {
   const goto = e.target.closest("[data-goto-tab]");
@@ -85,8 +104,10 @@ document.addEventListener("click", (e) => {
     const tray = state.trays.find((t) => t.id === id);
     if (tray) openForm(tray.tab, tray);
   } else if (act === "planted") updateStatus(id, "planted");
-  else if (act === "harvested") updateStatus(id, "harvested");
-  else if (act === "delivered") updateStatus(id, "delivered");
+  else if (act === "harvested") {
+    const tray = state.trays.find((t) => t.id === id);
+    if (tray) openHarvestDialog(tray);
+  } else if (act === "delivered") updateStatus(id, "delivered");
   else if (act === "stopped") updateStatus(id, "stopped");
   else if (act === "delete") {
     if (confirm("Remove this tray?")) store.remove(id);
@@ -99,12 +120,50 @@ async function updateStatus(id, status) {
   await store.upsert({ ...tray, status });
 }
 
+function defaultYieldUnit(tray) {
+  return tray.cropId === "nasturtium" ? "leaves" : "oz";
+}
+
+function yieldText(tray) {
+  if (tray.yieldAmount == null || tray.yieldAmount === "") return "";
+  const n = Number(tray.yieldAmount);
+  if (Number.isNaN(n)) return "";
+  if (tray.yieldUnit === "leaves") return `${n} ${n === 1 ? "leaf" : "leaves"}`;
+  if (tray.yieldUnit === "g") return `${n} g`;
+  return `${n} oz`;
+}
+
+function openHarvestDialog(tray) {
+  harvestTrayId = tray.id;
+  els.harvestTrayName.textContent = `${tray.variety} · cut ${prettyDate(tray.harvestOn)}`;
+  els.harvestAmount.value = tray.yieldAmount ?? "";
+  els.harvestUnit.value = tray.yieldUnit || defaultYieldUnit(tray);
+  els.harvestDialog.showModal();
+  els.harvestAmount.focus();
+}
+
+async function onHarvestSubmit(e) {
+  e.preventDefault();
+  const tray = state.trays.find((t) => t.id === harvestTrayId);
+  if (!tray) return;
+  const yieldAmount = Number(els.harvestAmount.value);
+  const yieldUnit = els.harvestUnit.value;
+  await store.upsert({ ...tray, status: "harvested", yieldAmount, yieldUnit });
+  els.harvestDialog.close();
+}
+
 function dueLine(tray) {
-  if (tray.status === "delivered") return "Delivered.";
+  if (tray.status === "delivered") {
+    const cut = yieldText(tray);
+    return cut ? `Delivered · harvested ${cut}.` : "Delivered.";
+  }
   if (tray.status === "stopped") return "Stopped — not for harvest.";
   if (tray.status === "harvested") {
-    if (tray.tab === "production") return "Harvested. Deliver today if it is Tuesday.";
-    return "Harvested.";
+    const cut = yieldText(tray);
+    if (tray.tab === "production") {
+      return cut ? `Harvested ${cut}. Deliver today if it is Tuesday.` : "Harvested. Deliver today if it is Tuesday.";
+    }
+    return cut ? `Harvested ${cut}.` : "Harvested.";
   }
   if (tray.status === "planned" && tray.plantOn === today) return "Plant today.";
   if (tray.status === "planned" && tray.plantOn > today) {
@@ -162,10 +221,12 @@ function trayCard(tray) {
       <p class="meta">Plant ${prettyDate(tray.plantOn)} · Harvest ${prettyDate(tray.harvestOn)}</p>
       ${flags.length ? `<p class="flags">${flags.join(" · ")}</p>` : ""}
       <p class="due ${dueClass}">${due}</p>
+      ${yieldText(tray) && tray.status !== "harvested" ? `<p class="yield">Yield ${escapeHtml(yieldText(tray))}</p>` : ""}
       ${tray.notes ? `<p class="notes">${escapeHtml(tray.notes)}</p>` : ""}
       <div class="row-actions">
         ${tray.status === "planned" ? `<button class="btn" data-action="planted" data-id="${tray.id}">Mark planted</button>` : ""}
         ${tray.status === "planted" ? `<button class="btn" data-action="harvested" data-id="${tray.id}">Mark harvested</button>` : ""}
+        ${tray.status === "harvested" && tray.yieldAmount == null ? `<button class="btn" data-action="harvested" data-id="${tray.id}">Add harvest amount</button>` : ""}
         ${tray.status === "harvested" && tray.tab === "production" ? `<button class="btn" data-action="delivered" data-id="${tray.id}">Mark delivered</button>` : ""}
         ${tray.status !== "stopped" && tray.status !== "delivered" ? `<button class="btn ghost" data-action="stopped" data-id="${tray.id}">Stop tray</button>` : ""}
         <button class="btn ghost" data-action="edit" data-id="${tray.id}">Edit</button>
@@ -321,6 +382,131 @@ function renderHero() {
     : `<div class="empty">No production trays aimed at this Tuesday yet. Add a tray and the plant date will fill in.</div>`;
 }
 
+function isPastTray(tray) {
+  return (
+    tray.harvestOn < today ||
+    tray.status === "harvested" ||
+    tray.status === "delivered" ||
+    tray.status === "stopped"
+  );
+}
+
+function pastTrays() {
+  return state.trays.filter(isPastTray);
+}
+
+function renderHistory() {
+  const boardSel = historyFilter.board;
+  const cropSel = historyFilter.crop;
+  let rows = pastTrays().filter((t) => {
+    if (boardSel !== "all" && t.tab !== boardSel) return false;
+    if (cropSel === "nasturtium" || cropSel === "amaranth" || cropSel === "cilantro") {
+      return t.cropId === cropSel;
+    }
+    if (cropSel === "testing") return t.tab === "testing";
+    return true;
+  });
+  rows = rows.slice().sort((a, b) => {
+    if (historyFilter.sort === "harvest-asc") return a.harvestOn.localeCompare(b.harvestOn) || a.plantOn.localeCompare(b.plantOn);
+    if (historyFilter.sort === "yield-desc") return (Number(b.yieldAmount) || 0) - (Number(a.yieldAmount) || 0);
+    if (historyFilter.sort === "crop") return a.variety.localeCompare(b.variety) || b.harvestOn.localeCompare(a.harvestOn);
+    return b.harvestOn.localeCompare(a.harvestOn) || b.plantOn.localeCompare(a.plantOn);
+  });
+
+  const crops = [
+    ...PRODUCTION_CROPS.map((c) => [c.id, c.name]),
+    ["testing", "Testing"],
+  ];
+  els.historyFilters.innerHTML = `
+    <label>Board
+      <select name="board">
+        <option value="all" ${boardSel === "all" ? "selected" : ""}>All</option>
+        <option value="production" ${boardSel === "production" ? "selected" : ""}>Production</option>
+        <option value="testing" ${boardSel === "testing" ? "selected" : ""}>Testing</option>
+      </select>
+    </label>
+    <label>Crop
+      <select name="crop">
+        <option value="all" ${cropSel === "all" ? "selected" : ""}>All crops</option>
+        ${crops.map(([id, name]) => `<option value="${id}" ${cropSel === id ? "selected" : ""}>${name}</option>`).join("")}
+      </select>
+    </label>
+    <label>Sort
+      <select name="sort">
+        <option value="harvest-desc" ${historyFilter.sort === "harvest-desc" ? "selected" : ""}>Newest harvest</option>
+        <option value="harvest-asc" ${historyFilter.sort === "harvest-asc" ? "selected" : ""}>Oldest harvest</option>
+        <option value="crop" ${historyFilter.sort === "crop" ? "selected" : ""}>Crop name</option>
+        <option value="yield-desc" ${historyFilter.sort === "yield-desc" ? "selected" : ""}>Highest yield</option>
+      </select>
+    </label>
+  `;
+
+  const harvested = rows.filter((t) => t.status === "harvested" || t.status === "delivered");
+  const stopped = rows.filter((t) => t.status === "stopped");
+  const oz = harvested.filter((t) => (t.yieldUnit || "oz") === "oz").reduce((s, t) => s + (Number(t.yieldAmount) || 0), 0);
+  const leaves = harvested.filter((t) => t.yieldUnit === "leaves").reduce((s, t) => s + (Number(t.yieldAmount) || 0), 0);
+  const grams = harvested.filter((t) => t.yieldUnit === "g").reduce((s, t) => s + (Number(t.yieldAmount) || 0), 0);
+  const late = rows.filter((t) => windowFlags(t).includes("Planted late")).length;
+
+  els.historyStats.innerHTML = [
+    ["Trays in list", rows.length, "Finished, missed, or stopped"],
+    ["Harvested", harvested.length, `${stopped.length} stopped`],
+    ["Ounces cut", oz ? oz.toFixed(1).replace(/\.0$/, "") : "—", "oz only"],
+    ["Leaves cut", leaves || "—", "nasturtium counts"],
+    ["Grams cut", grams || "—", "g only"],
+    ["Planted late", late, "vs on-time plant day"],
+  ].map(([label, n, hint]) => `
+    <article class="stat-card">
+      <p class="stat-n">${n}</p>
+      <p class="stat-label">${label}</p>
+      <p class="stat-hint">${hint}</p>
+    </article>
+  `).join("");
+
+  if (!rows.length) {
+    els.historyList.innerHTML = `<div class="empty">No past trays yet. After you harvest, they show up here in a list you can filter and sort.</div>`;
+    return;
+  }
+
+  els.historyList.innerHTML = `
+    <div class="history-list">
+      <div class="history-head">
+        <span>Harvest</span>
+        <span>Crop</span>
+        <span>Board</span>
+        <span>Yield</span>
+        <span>Days</span>
+        <span>Notes</span>
+      </div>
+      ${rows.map((t) => {
+        const days = diffDays(t.plantOn, t.harvestOn);
+        const flags = windowFlags(t);
+        return `
+          <article class="history-row">
+            <div>
+              <strong>${prettyDate(t.harvestOn)}</strong>
+              <p class="meta">Plant ${prettyDate(t.plantOn)}</p>
+            </div>
+            <div>
+              <h3 class="crop">${escapeHtml(t.variety)}</h3>
+              <p class="meta">${statusLabel(t.status)}${flags.length ? " · " + flags.join(" · ") : ""}</p>
+            </div>
+            <div>${t.tab === "production" ? "Production" : "Testing"}</div>
+            <div class="yield">${escapeHtml(yieldText(t) || "—")}</div>
+            <div>${days} days</div>
+            <div>
+              <p class="notes">${escapeHtml(t.notes || "")}</p>
+              <div class="row-actions">
+                <button class="btn ghost" type="button" data-action="edit" data-id="${t.id}">Edit</button>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
 function renderTrays() {
   const prod = state.trays.filter((t) => t.tab === "production");
   const test = state.trays.filter((t) => t.tab === "testing");
@@ -365,10 +551,12 @@ function render() {
   els.dashboard.hidden = activeTab !== "dashboard";
   els.production.hidden = activeTab !== "production";
   els.testing.hidden = activeTab !== "testing";
+  els.past.hidden = activeTab !== "past";
   renderDashboard();
   renderPlantNext();
   renderHero();
   renderTrays();
+  renderHistory();
   renderAuth();
 }
 
@@ -422,6 +610,20 @@ function openForm(tab, tray = null) {
       <p class="computed" id="plant-preview"></p>
       <label class="check"><input type="checkbox" name="alreadyPlanted" id="field-planted" ${alreadyPlanted ? "checked" : ""}> I already planted this tray</label>
       <label class="check"><input type="checkbox" name="alreadyHarvested" id="field-harvested" ${alreadyHarvested ? "checked" : ""}> I already harvested this tray (including a late or missed cut)</label>
+      <div id="yield-fields" ${alreadyHarvested ? "" : "hidden"}>
+        <div class="amount-row">
+          <label>How much was harvested
+            <input name="yieldAmount" type="number" min="0" step="0.1" value="${tray?.yieldAmount ?? ""}">
+          </label>
+          <label>Unit
+            <select name="yieldUnit">
+              <option value="oz" ${(!tray?.yieldUnit || tray?.yieldUnit === "oz") && cropId !== "nasturtium" ? "selected" : ""}>ounces (oz)</option>
+              <option value="g" ${tray?.yieldUnit === "g" ? "selected" : ""}>grams (g)</option>
+              <option value="leaves" ${tray?.yieldUnit === "leaves" || (!tray?.yieldUnit && cropId === "nasturtium") ? "selected" : ""}>leaves</option>
+            </select>
+          </label>
+        </div>
+      </div>
       <label>Notes
         <textarea name="notes">${escapeHtml(tray?.notes ?? "")}</textarea>
       </label>
@@ -467,6 +669,9 @@ function openForm(tab, tray = null) {
     cropEl.addEventListener("change", fillOnTimePlant);
     harvestEl.addEventListener("change", fillOnTimePlant);
     plantEl.addEventListener("change", updatePreview);
+    document.getElementById("field-harvested").addEventListener("change", (ev) => {
+      document.getElementById("yield-fields").hidden = !ev.target.checked;
+    });
     updatePreview();
   } else {
     const plantOn = tray?.plantOn ?? today;
@@ -525,6 +730,8 @@ async function onSubmit(e) {
       status: alreadyHarvested ? "harvested" : alreadyPlanted ? "planted" : "planned",
       notes: String(data.get("notes") || "").trim(),
       createdAt: Date.now(),
+      yieldAmount: alreadyHarvested && data.get("yieldAmount") !== "" ? Number(data.get("yieldAmount")) : undefined,
+      yieldUnit: alreadyHarvested ? (data.get("yieldUnit") || "oz") : undefined,
     };
   } else {
     const plantOn = data.get("plantOn");
@@ -546,6 +753,10 @@ async function onSubmit(e) {
     const prev = state.trays.find((t) => t.id === editingId);
     if (prev) {
       tray.createdAt = prev.createdAt;
+      if (tray.yieldAmount == null && prev.yieldAmount != null) {
+        tray.yieldAmount = prev.yieldAmount;
+        tray.yieldUnit = prev.yieldUnit;
+      }
       if (tab === "production" && data.get("alreadyHarvested") !== "on" && data.get("alreadyPlanted") !== "on") {
         tray.status = prev.status;
       }

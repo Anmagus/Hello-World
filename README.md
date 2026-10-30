@@ -24,6 +24,10 @@ The home screen is a **Dashboard** for the grow room: days until harvest Tuesday
 
 The board is a website. Open it in Safari or Chrome on a phone or iPad. On iPhone, use **Share → Add to Home Screen** so it opens like an app. Buttons are large enough to tap with dirty hands, and the layout stacks on a phone and uses two columns on an iPad.
 
+## Past tab
+
+A list of finished, missed, and stopped trays. Filter by board or crop, sort by harvest date or yield, and compare how much you cut. Marking a tray harvested asks **how much** you cut (ounces, grams, or leaves).
+
 ## Testing tab
 
 Use **Testing** for other greens you are trying for later distribution. Those trays are not locked to Tuesday.
