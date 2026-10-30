@@ -3,7 +3,10 @@ import {
   addDays,
   diffDays,
   upcomingTuesdays,
+  harvestTuesdayGroups,
   plantDateForHarvest,
+  plantMovedOffTuesday,
+  isTuesday,
   nextOnTimeCycle,
   prettyDate,
   prettyDateLong,
@@ -15,13 +18,20 @@ import { createStore, newId } from "./store.js";
 const store = createStore();
 const today = todayISO();
 const tuesdays = upcomingTuesdays(today, 8);
+const harvestGroups = harvestTuesdayGroups(today, 8, 8);
+const harvestChoices = [...harvestGroups.past, ...harvestGroups.upcoming];
 const thisTuesday = tuesdays[0];
 
 const els = {
   tabButtons: [...document.querySelectorAll("[data-tab-btn]")],
+  dashboard: document.getElementById("panel-dashboard"),
   production: document.getElementById("panel-production"),
   testing: document.getElementById("panel-testing"),
   plantGrid: document.getElementById("plant-grid"),
+  dashHero: document.getElementById("dash-hero"),
+  dashStats: document.getElementById("dash-stats"),
+  dashJobs: document.getElementById("dash-jobs"),
+  dashPlants: document.getElementById("dash-plants"),
   harvestHero: document.getElementById("harvest-hero"),
   harvestList: document.getElementById("harvest-list"),
   productionTrays: document.getElementById("production-trays"),
@@ -36,7 +46,7 @@ const els = {
 };
 
 let state = { trays: [], user: null, mode: "local", syncReady: false };
-let activeTab = "production";
+let activeTab = "dashboard";
 let editingId = null;
 
 store.subscribe((next) => {
@@ -60,6 +70,13 @@ document.getElementById("form-cancel").addEventListener("click", () => els.dialo
 els.form.addEventListener("submit", onSubmit);
 
 document.addEventListener("click", (e) => {
+  const goto = e.target.closest("[data-goto-tab]");
+  if (goto) {
+    activeTab = goto.dataset.gotoTab;
+    render();
+    window.scrollTo(0, 0);
+    return;
+  }
   const action = e.target.closest("[data-action]");
   if (!action) return;
   const id = action.dataset.id;
@@ -102,14 +119,37 @@ function dueLine(tray) {
     const n = diffDays(today, tray.harvestOn);
     return `Harvest in ${n} day${n === 1 ? "" : "s"} (${prettyDate(tray.harvestOn)}).`;
   }
+  if (tray.status === "planted" || tray.status === "planned") {
+    return `Harvest window was ${prettyDate(tray.harvestOn)} — missed. Mark harvested if you cut late, or stop the tray.`;
+  }
   return `Harvest date was ${prettyDate(tray.harvestOn)}.`;
+}
+
+function windowFlags(tray) {
+  const flags = [];
+  const crop = productionCrop(tray.cropId);
+  if (crop) {
+    const onTime = plantDateForHarvest(tray.harvestOn, crop.daysToHarvest);
+    if (tray.plantOn > onTime) flags.push("Planted late");
+    else if (tray.plantOn < onTime) flags.push("Planted early");
+  }
+  if (tray.harvestOn < today && (tray.status === "planned" || tray.status === "planted")) {
+    flags.push("Missed harvest window");
+  }
+  return flags;
 }
 
 function trayCard(tray) {
   const crop = productionCrop(tray.cropId);
   const tone = crop?.tone ?? "leaf";
   const due = dueLine(tray);
-  const dueClass = due.includes("today") || due.startsWith("Plant today") || due.startsWith("Harvest today") ? "today" : "";
+  const flags = windowFlags(tray);
+  const missed = due.includes("missed");
+  const dueClass = missed
+    ? "missed"
+    : due.includes("today") || due.startsWith("Plant today") || due.startsWith("Harvest today")
+      ? "today"
+      : "";
   return `
     <article class="card tray ${tone}">
       <header>
@@ -120,6 +160,7 @@ function trayCard(tray) {
         <span class="status ${tray.status}">${statusLabel(tray.status)}</span>
       </header>
       <p class="meta">Plant ${prettyDate(tray.plantOn)} · Harvest ${prettyDate(tray.harvestOn)}</p>
+      ${flags.length ? `<p class="flags">${flags.join(" · ")}</p>` : ""}
       <p class="due ${dueClass}">${due}</p>
       ${tray.notes ? `<p class="notes">${escapeHtml(tray.notes)}</p>` : ""}
       <div class="row-actions">
@@ -134,8 +175,8 @@ function trayCard(tray) {
   `;
 }
 
-function renderPlantNext() {
-  els.plantGrid.innerHTML = PRODUCTION_CROPS.map((crop) => {
+function plantCardsHtml() {
+  return PRODUCTION_CROPS.map((crop) => {
     const cycle = nextOnTimeCycle(crop.daysToHarvest, today, tuesdays);
     const daysOut = diffDays(today, cycle.plant);
     const when =
@@ -147,13 +188,120 @@ function renderPlantNext() {
     return `
       <article class="card ${crop.tone}">
         <h3 class="crop">${crop.name}</h3>
-        <p class="variety">${crop.variety} · ${crop.daysToHarvest} days to harvest</p>
+        <p class="variety">${crop.variety} · ${crop.daysToHarvest} days to harvest · never plant Tuesday</p>
         <p class="plant-date">${when}: <strong>${prettyDate(cycle.plant)}</strong></p>
         <p class="meta">Ready to cut ${prettyDateLong(cycle.harvest)}</p>
         <p class="meta">${crop.note}</p>
       </article>
     `;
   }).join("");
+}
+
+function renderPlantNext() {
+  els.plantGrid.innerHTML = plantCardsHtml();
+}
+
+function activeTrays(tab) {
+  return state.trays.filter((t) => t.tab === tab && t.status !== "stopped");
+}
+
+function renderDashboard() {
+  const daysOut = diffDays(today, thisTuesday);
+  const when =
+    daysOut === 0
+      ? "Harvest and deliver today."
+      : daysOut === 1
+        ? "Harvest and deliver tomorrow."
+        : `${daysOut} days until harvest Tuesday.`;
+  els.dashHero.innerHTML = `
+    <div>
+      <p class="kicker">Dashboard</p>
+      <h2>${prettyDateLong(thisTuesday)}</h2>
+      <p class="sub">${when} Cut in the morning, drop off the same day.</p>
+    </div>
+  `;
+
+  const prod = activeTrays("production");
+  const test = activeTrays("testing").filter((t) => t.status !== "harvested");
+  const growing = prod.filter((t) => t.status === "planted");
+  const plantToday = prod.filter((t) => t.status === "planned" && t.plantOn <= today);
+  const plantSoon = prod.filter((t) => t.status === "planned" && t.plantOn > today && diffDays(today, t.plantOn) <= 2);
+  const cutTue = prod.filter((t) => t.harvestOn === thisTuesday && (t.status === "planted" || t.status === "planned" || t.status === "harvested"));
+  const missed = prod.filter((t) => (t.status === "planned" || t.status === "planted") && t.harvestOn < today);
+  const harvested = prod.filter((t) => t.status === "harvested");
+
+  els.dashStats.innerHTML = [
+    ["Growing", growing.length, "In the trays now"],
+    ["Plant now", plantToday.length, "Missed or due today"],
+    ["Cut this Tuesday", cutTue.length, prettyDate(thisTuesday)],
+    ["Testing", test.length, "Trial greens"],
+    ["Missed windows", missed.length, "Need a decision"],
+    ["Harvested, not delivered", harvested.length, "Still in the cooler"],
+  ].map(([label, n, hint]) => `
+    <article class="stat-card ${Number(n) && (label === "Missed windows" || label === "Plant now") ? "alert" : ""}">
+      <p class="stat-n">${n}</p>
+      <p class="stat-label">${label}</p>
+      <p class="stat-hint">${hint}</p>
+    </article>
+  `).join("");
+
+  const jobs = [];
+  if (daysOut === 0) {
+    jobs.push({
+      title: "Harvest and deliver today",
+      body: cutTue.length
+        ? `${cutTue.length} production tray${cutTue.length === 1 ? "" : "s"} aimed at this Tuesday.`
+        : "No trays are aimed at today. Add a backdated tray if you still cut something.",
+      tab: "production",
+    });
+  }
+  if (plantToday.length) {
+    jobs.push({
+      title: "Plant these trays",
+      body: plantToday.map((t) => t.variety).join(", "),
+      tab: "production",
+    });
+  }
+  if (plantSoon.length) {
+    jobs.push({
+      title: "Plant in the next two days",
+      body: plantSoon.map((t) => `${t.variety} on ${prettyDate(t.plantOn)}`).join(" · "),
+      tab: "production",
+    });
+  }
+  if (missed.length) {
+    jobs.push({
+      title: "Missed harvest windows",
+      body: "Log a late cut, retarget a later Tuesday, or stop the tray.",
+      tab: "production",
+    });
+  }
+  if (test.length) {
+    jobs.push({
+      title: "Testing greens in progress",
+      body: test.map((t) => `${t.variety} · harvest ${prettyDate(t.harvestOn)}`).join(" · "),
+      tab: "testing",
+    });
+  }
+  if (!jobs.length) {
+    jobs.push({
+      title: "No jobs yet",
+      body: "Add a production tray or a test tray and this board will tell you what to do today.",
+      tab: "production",
+    });
+  }
+
+  els.dashJobs.innerHTML = jobs.map((job) => `
+    <article class="card job-card">
+      <h3 class="crop">${escapeHtml(job.title)}</h3>
+      <p class="meta">${escapeHtml(job.body)}</p>
+      <div class="row-actions">
+        <button class="btn" type="button" data-goto-tab="${job.tab}">Open board</button>
+      </div>
+    </article>
+  `).join("");
+
+  els.dashPlants.innerHTML = plantCardsHtml();
 }
 
 function renderHero() {
@@ -214,12 +362,34 @@ function render() {
   els.tabButtons.forEach((btn) => {
     btn.setAttribute("aria-selected", String(btn.dataset.tabBtn === activeTab));
   });
+  els.dashboard.hidden = activeTab !== "dashboard";
   els.production.hidden = activeTab !== "production";
   els.testing.hidden = activeTab !== "testing";
+  renderDashboard();
   renderPlantNext();
   renderHero();
   renderTrays();
   renderAuth();
+}
+
+function harvestOptionGroups(selected) {
+  const extra = selected && !harvestChoices.includes(selected)
+    ? `<option value="${selected}" selected>${prettyDateLong(selected)}</option>`
+    : "";
+  const pastOpts = harvestGroups.past
+    .map((d) => `<option value="${d}" ${d === selected ? "selected" : ""}>${prettyDate(d)} — past</option>`)
+    .join("");
+  const upcomingOpts = harvestGroups.upcoming
+    .map((d) => {
+      const tag = d === today ? " — today" : d === thisTuesday ? " — next" : "";
+      return `<option value="${d}" ${d === selected ? "selected" : ""}>${prettyDateLong(d)}${tag}</option>`;
+    })
+    .join("");
+  return `
+    ${extra}
+    <optgroup label="Past Tuesdays (missed windows)">${pastOpts}</optgroup>
+    <optgroup label="Upcoming Tuesdays">${upcomingOpts}</optgroup>
+  `;
 }
 
 function openForm(tab, tray = null) {
@@ -229,6 +399,9 @@ function openForm(tab, tray = null) {
     const cropId = tray?.cropId ?? "nasturtium";
     const crop = productionCrop(cropId);
     const harvest = tray?.harvestOn ?? nextOnTimeCycle(crop.daysToHarvest, today, tuesdays).harvest;
+    const plantOn = tray?.plantOn ?? plantDateForHarvest(harvest, crop.daysToHarvest);
+    const alreadyPlanted = Boolean(tray?.status && tray.status !== "planned") || (!tray && plantOn < today);
+    const alreadyHarvested = tray?.status === "harvested" || tray?.status === "delivered";
     els.formFields.innerHTML = `
       <input type="hidden" name="tab" value="production">
       <label>Crop
@@ -238,24 +411,62 @@ function openForm(tab, tray = null) {
       </label>
       <label>Harvest Tuesday
         <select name="harvestOn" id="field-harvest">
-          ${tuesdays.map((d) => `<option value="${d}" ${d === harvest ? "selected" : ""}>${prettyDateLong(d)}</option>`).join("")}
+          ${harvestOptionGroups(harvest)}
         </select>
       </label>
+      <p class="hint">Pick a past Tuesday if you missed the harvest window. Harvest and delivery stay on Tuesday — we do not schedule planting on Tuesday.</p>
+      <label>Planted on
+        <input name="plantOn" id="field-plant" type="date" required value="${plantOn}">
+      </label>
+      <p class="hint">Past dates are OK if you missed the plant window. If the count lands on a Tuesday, the board moves planting to Monday.</p>
       <p class="computed" id="plant-preview"></p>
-      <label class="check"><input type="checkbox" name="alreadyPlanted" ${tray?.status && tray.status !== "planned" ? "checked" : ""}> I already planted this tray</label>
+      <label class="check"><input type="checkbox" name="alreadyPlanted" id="field-planted" ${alreadyPlanted ? "checked" : ""}> I already planted this tray</label>
+      <label class="check"><input type="checkbox" name="alreadyHarvested" id="field-harvested" ${alreadyHarvested ? "checked" : ""}> I already harvested this tray (including a late or missed cut)</label>
       <label>Notes
         <textarea name="notes">${escapeHtml(tray?.notes ?? "")}</textarea>
       </label>
     `;
+    const cropEl = document.getElementById("field-crop");
+    const harvestEl = document.getElementById("field-harvest");
+    const plantEl = document.getElementById("field-plant");
+    let suggestedPlant = plantDateForHarvest(harvest, crop.daysToHarvest);
     const updatePreview = () => {
-      const c = productionCrop(document.getElementById("field-crop").value);
-      const h = document.getElementById("field-harvest").value;
-      const plant = plantDateForHarvest(h, c.daysToHarvest);
-      document.getElementById("plant-preview").textContent =
-        `Plant on ${prettyDateLong(plant)} (${weekdayName(plant)}) so it is ready ${prettyDateLong(h)}. ${c.note}`;
+      const c = productionCrop(cropEl.value);
+      const h = harvestEl.value;
+      const planted = plantEl.value;
+      const onTime = plantDateForHarvest(h, c.daysToHarvest);
+      const notes = [];
+      if (!planted || !h) return;
+      if (planted === onTime) {
+        notes.push(`On-time plant for ${c.daysToHarvest} days: ${prettyDateLong(planted)} (${weekdayName(planted)}).`);
+        if (plantMovedOffTuesday(h, c.daysToHarvest)) {
+          notes.push("Exact count would have been a Tuesday, so planting moved to Monday. Harvest and delivery stay Tuesday.");
+        }
+      } else if (planted > onTime) {
+        const n = diffDays(onTime, planted);
+        notes.push(`Planted ${n} day${n === 1 ? "" : "s"} late. On-time was ${prettyDate(onTime)}. Leaves may be smaller by ${prettyDate(h)}.`);
+      } else {
+        const n = diffDays(planted, onTime);
+        notes.push(`Planted ${n} day${n === 1 ? "" : "s"} early. On-time was ${prettyDate(onTime)}.`);
+      }
+      if (isTuesday(planted)) notes.push("Tuesday is harvest and delivery day. Plant Monday instead if you can.");
+      if (h < today) notes.push("This harvest Tuesday is already past. Save to record a missed window, or pick a later Tuesday.");
+      else if (h === today) notes.push("Harvest and deliver today.");
+      const preview = document.getElementById("plant-preview");
+      preview.textContent = notes.join(" ");
+      preview.className = h < today || planted > onTime || isTuesday(planted) ? "computed warn" : "computed";
     };
-    document.getElementById("field-crop").addEventListener("change", updatePreview);
-    document.getElementById("field-harvest").addEventListener("change", updatePreview);
+    const fillOnTimePlant = () => {
+      const c = productionCrop(cropEl.value);
+      const nextSuggested = plantDateForHarvest(harvestEl.value, c.daysToHarvest);
+      if (plantEl.value === suggestedPlant || !plantEl.value) plantEl.value = nextSuggested;
+      suggestedPlant = nextSuggested;
+      if (plantEl.value < today) document.getElementById("field-planted").checked = true;
+      updatePreview();
+    };
+    cropEl.addEventListener("change", fillOnTimePlant);
+    harvestEl.addEventListener("change", fillOnTimePlant);
+    plantEl.addEventListener("change", updatePreview);
     updatePreview();
   } else {
     const plantOn = tray?.plantOn ?? today;
@@ -271,6 +482,7 @@ function openForm(tab, tray = null) {
       <label>Planted on
         <input name="plantOn" type="date" required value="${plantOn}">
       </label>
+      <p class="hint">Past dates are OK if you are logging a test tray after it was planted.</p>
       <p class="computed" id="test-preview"></p>
       <label>Notes
         <textarea name="notes">${escapeHtml(tray?.notes ?? "")}</textarea>
@@ -299,8 +511,9 @@ async function onSubmit(e) {
   if (tab === "production") {
     const crop = productionCrop(data.get("cropId"));
     const harvestOn = data.get("harvestOn");
-    const plantOn = plantDateForHarvest(harvestOn, crop.daysToHarvest);
-    const already = data.get("alreadyPlanted") === "on";
+    const plantOn = data.get("plantOn");
+    const alreadyHarvested = data.get("alreadyHarvested") === "on";
+    const alreadyPlanted = alreadyHarvested || data.get("alreadyPlanted") === "on";
     tray = {
       id: editingId ?? newId(),
       tab: "production",
@@ -309,7 +522,7 @@ async function onSubmit(e) {
       daysToHarvest: crop.daysToHarvest,
       plantOn,
       harvestOn,
-      status: already ? "planted" : "planned",
+      status: alreadyHarvested ? "harvested" : alreadyPlanted ? "planted" : "planned",
       notes: String(data.get("notes") || "").trim(),
       createdAt: Date.now(),
     };
@@ -333,7 +546,9 @@ async function onSubmit(e) {
     const prev = state.trays.find((t) => t.id === editingId);
     if (prev) {
       tray.createdAt = prev.createdAt;
-      if (tab === "production" && data.get("alreadyPlanted") !== "on") tray.status = prev.status;
+      if (tab === "production" && data.get("alreadyHarvested") !== "on" && data.get("alreadyPlanted") !== "on") {
+        tray.status = prev.status;
+      }
     }
   }
   await store.upsert(tray);

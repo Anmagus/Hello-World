@@ -49,8 +49,36 @@ export function upcomingTuesdays(fromISO, count = 8) {
   return out;
 }
 
-export function plantDateForHarvest(harvestISO, daysToHarvest) {
+export function pastTuesdays(fromISO, count = 8) {
+  let t = addDays(nextTuesdayOnOrAfter(fromISO), -7);
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    out.push(t);
+    t = addDays(t, -7);
+  }
+  return out.reverse();
+}
+
+export function harvestTuesdayGroups(fromISO, pastCount = 8, futureCount = 8) {
+  return {
+    past: pastTuesdays(fromISO, pastCount),
+    upcoming: upcomingTuesdays(fromISO, futureCount),
+  };
+}
+
+export function rawPlantDate(harvestISO, daysToHarvest) {
   return addDays(harvestISO, -daysToHarvest);
+}
+
+/** Plant day for a Tuesday harvest. Never returns a Tuesday — that's harvest and delivery day. */
+export function plantDateForHarvest(harvestISO, daysToHarvest) {
+  const raw = rawPlantDate(harvestISO, daysToHarvest);
+  if (isTuesday(raw)) return addDays(raw, -1);
+  return raw;
+}
+
+export function plantMovedOffTuesday(harvestISO, daysToHarvest) {
+  return isTuesday(rawPlantDate(harvestISO, daysToHarvest));
 }
 
 export function nextOnTimeCycle(daysToHarvest, today, tuesdays) {

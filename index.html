@@ -2,9 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#163326">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Gold Leaf Harvest">
   <title>Gold Leaf Harvest — Tuesday grow board</title>
   <link rel="icon" href="assets/logo.png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
@@ -28,11 +32,32 @@
     </header>
 
     <nav class="tabs" role="tablist" aria-label="Grow boards">
-      <button type="button" role="tab" data-tab-btn="production" aria-selected="true">Tuesday production</button>
+      <button type="button" role="tab" data-tab-btn="dashboard" aria-selected="true">Dashboard</button>
+      <button type="button" role="tab" data-tab-btn="production" aria-selected="false">Tuesday production</button>
       <button type="button" role="tab" data-tab-btn="testing" aria-selected="false">Testing</button>
     </nav>
 
-    <section id="panel-production" class="panel">
+    <section id="panel-dashboard" class="panel">
+      <div class="hero-tuesday" id="dash-hero"></div>
+      <div class="dash-stats" id="dash-stats"></div>
+      <div class="section-head">
+        <div>
+          <h2>Today’s jobs</h2>
+          <p>What to plant, cut, or catch up on — no money, just the grow room.</p>
+        </div>
+      </div>
+      <div class="dash-jobs" id="dash-jobs"></div>
+      <div class="section-head">
+        <div>
+          <h2>Next plant dates</h2>
+          <p>On-time dates so harvest still lands on a Tuesday.</p>
+        </div>
+        <button class="btn" type="button" data-goto-tab="production">Open production</button>
+      </div>
+      <div class="grid-3" id="dash-plants"></div>
+    </section>
+
+    <section id="panel-production" class="panel" hidden>
       <div class="hero-tuesday" id="harvest-hero"></div>
 
       <div class="section-head">

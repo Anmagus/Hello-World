@@ -6,13 +6,23 @@ This app helps you **plant**, **track each tray**, and **harvest on Tuesday** so
 
 ## Tuesday production
 
-| Crop | Variety | Days to harvest | Why that length |
+| Crop | Variety | Days to harvest | Plant day rule |
 | --- | --- | --- | --- |
-| Nasturtium | Empress of India | 16 | A little bigger than a standard cut |
-| Amaranth | Red Garnet | 10 | Restaurant rotation |
-| Cilantro | Coriander | 17 | Slower crop |
+| Nasturtium | Empress of India | 18 | Bigger leaves. Never plant on Tuesday. |
+| Amaranth | Red Garnet | 14 | 14 days is a Tuesday, so plant Monday. |
+| Cilantro | Coriander | 25 | Slow crop. Never plant on Tuesday. |
 
-The board tells you the next **plant-by date** so harvest lands on a Tuesday.
+The board tells you the next **plant-by date** so harvest and delivery stay on Tuesday. If the count would land on a Tuesday, planting moves to **Monday**.
+
+You can still **add a tray after the fact**. The Add tray dialog includes past Tuesdays and an editable plant date, so a missed plant window or a missed harvest window can be logged.
+
+## Dashboard
+
+The home screen is a **Dashboard** for the grow room: days until harvest Tuesday, tray counts, today’s plant/cut jobs, missed windows, and the next on-time plant dates. It does not show money.
+
+## Phone and iPad
+
+The board is a website. Open it in Safari or Chrome on a phone or iPad. On iPhone, use **Share → Add to Home Screen** so it opens like an app. Buttons are large enough to tap with dirty hands, and the layout stacks on a phone and uses two columns on an iPad.
 
 ## Testing tab
 
